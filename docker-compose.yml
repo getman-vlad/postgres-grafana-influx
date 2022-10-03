@@ -1,23 +1,6 @@
 version: '3.6'
 
 services:
-  influx:
-    image: influxdb:latest
-    name: influx
-    container_name: ${INFLUX_CONTAINER}
-    restart: always
-    ports:
-      - "${INFLUX_PORT}:8086"
-    volumes:
-      - influx:/var/lib/influxdb
-    environment:
-      - INFLUXDB_HOST=${INFLUX_HOST}
-      - INFLUXDB_DB=${INFLUX_DBNAME}
-      - INFLUXDB_ADMIN_USER=${INFLUX_USER}
-      - INFLUXDB_ADMIN_PASSWORD=${INFLUX_PASSWORD}
-    networks:
-      - influx
-
   postgres:
     image: postgres:latest
     name: postgres
@@ -34,6 +17,35 @@ services:
     networks:
       - postgres
 
+  telegraf:
+    image: telegraf:latest
+    name: telegraf
+    container_name: ${TELEGRAF_CONTAINER}
+    volumes:
+    - ./telegraf/etc/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    depends_on:
+      - influx
+    links:
+      - influx
+    ports:
+    - '127.0.0.1:8125:8125/udp'
+
+  influx:
+    image: influxdb:latest
+    name: influx
+    container_name: ${INFLUX_CONTAINER}
+    restart: always
+    ports:
+      - "${INFLUX_PORT}:8086"
+    volumes:
+      - influx:/var/lib/influxdb
+    environment:
+      - INFLUXDB_HOST=${INFLUX_HOST}
+      - INFLUXDB_DB=${INFLUX_DBNAME}
+      - INFLUXDB_ADMIN_USER=${INFLUX_USER}
+      - INFLUXDB_ADMIN_PASSWORD=${INFLUX_PASSWORD}
+    networks:
+      - influx
   grafana:
     image: grafana/grafana:latest
     name: grafana
@@ -49,7 +61,7 @@ services:
       GF_USERS_DEFAULT_THEME: "dark"
       GF_INSTALL_PLUGINS: grafana-worldmap-panel, citilogics-geoloop-panel
     volumes:
-      - grafana:/var/lib/grafana:rw
+      - grafana-data:/var/lib/grafana:rw
     depends_on:
       - influx
       - postgres
@@ -57,17 +69,18 @@ services:
       - influx
       - postgres
 
-  telegraf:
-    image: telegraf:latest
-    name: telegraf
-    volumes:
-    - ./telegraf/etc/telegraf.conf:/etc/telegraf/telegraf.conf:ro
-    depends_on:
-      - influx
-    links:
-      - influx
+  prometheus:
+    image: prom/prometheus:latest
+    name: prometheus
+    container_name: ${PROMETHEUS_CONTAINER}
     ports:
-    - '127.0.0.1:8125:8125/udp'
+      - "9090:9090"
+    volumes:
+      - ./prometheus-config:/config
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/config/prometheus.yml"
 
 networks:
   influx:
@@ -76,6 +89,7 @@ networks:
     driver: bridge
 
 volumes:
-  influx:
-  postgres:
-  grafana:
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
