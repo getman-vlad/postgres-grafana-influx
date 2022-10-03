@@ -3,7 +3,6 @@ version: '3.6'
 services:
   postgres:
     image: postgres:latest
-    name: postgres
     container_name: ${POSTGRES_CONTAINER}
     restart: always
     ports:
@@ -13,13 +12,12 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres:/var/lib/postgresql/data
+      - ./postgres:/var/lib/postgresql/data
     networks:
       - postgres
 
   telegraf:
     image: telegraf:latest
-    name: telegraf
     container_name: ${TELEGRAF_CONTAINER}
     volumes:
     - ./telegraf/etc/telegraf.conf:/etc/telegraf/telegraf.conf:ro
@@ -32,13 +30,12 @@ services:
 
   influx:
     image: influxdb:latest
-    name: influx
     container_name: ${INFLUX_CONTAINER}
     restart: always
     ports:
       - "${INFLUX_PORT}:8086"
     volumes:
-      - influx:/var/lib/influxdb
+      - ./influx:/var/lib/influxdb
     environment:
       - INFLUXDB_HOST=${INFLUX_HOST}
       - INFLUXDB_DB=${INFLUX_DBNAME}
@@ -48,7 +45,6 @@ services:
       - influx
   grafana:
     image: grafana/grafana:latest
-    name: grafana
     container_name: ${GRAFANA_CONTAINER}
     restart: always
     ports:
@@ -61,7 +57,7 @@ services:
       GF_USERS_DEFAULT_THEME: "dark"
       GF_INSTALL_PLUGINS: grafana-worldmap-panel, citilogics-geoloop-panel
     volumes:
-      - grafana-data:/var/lib/grafana:rw
+      - ./grafana:/var/lib/grafana:rw
     depends_on:
       - influx
       - postgres
@@ -71,13 +67,12 @@ services:
 
   prometheus:
     image: prom/prometheus:latest
-    name: prometheus
     container_name: ${PROMETHEUS_CONTAINER}
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus-config:/config
-      - prometheus-data:/prometheus
+      - ./prometheus/config:/config
+      - ./prometheus/data:/prometheus
     restart: unless-stopped
     command:
       - "--config.file=/config/prometheus.yml"
@@ -87,9 +82,3 @@ networks:
     driver: bridge
   postgres:
     driver: bridge
-
-volumes:
-  prometheus-data:
-    driver: local
-  grafana-data:
-    driver: local
